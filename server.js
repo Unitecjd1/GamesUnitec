@@ -10,9 +10,10 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC = path.join(__dirname, "public");
 app.use(express.static(PUBLIC));
 app.use("/milhao", express.static(path.join(PUBLIC, "milhao")));
-app.get("/health", (_req,res)=>res.json({ok:true,app:"UNITEC Game Center",games:["Bomba da Digitação","Show de Milhões"]}));
+app.get("/health", (_req,res)=>res.json({ok:true,app:"UNITEC Game Center",games:["Bomba da Digitação","Show de Milhões","Cyber Snake"]}));
 app.get("/bomba", (_req,res)=>res.sendFile(path.join(PUBLIC,"bomba.html")));
-app.get("/milhao", (_req,res)=>res.sendFile(path.join(PUBLIC,"milhao","index.html")));
+app.get("/milhao", (_req,res)=>res.sendFile(path.join(PUBLIC,"milhao","index.html")) );
+app.get("/cobra", (_req,res)=>res.sendFile(path.join(PUBLIC,"cobra.html")));
 
 function setupBomb(io) {
 const MAX_PLAYERS = 20;
@@ -654,6 +655,86 @@ io.on("connection", socket => {
 });
 
 }
+
+function setupSnake(io) {
+  const rooms = new Map();
+  const W = 32, H = 20, MAX = 8;
+  const foods = [
+    { emoji:"🧠", label:"RAM", points:10, fact:"A memória RAM guarda temporariamente os dados em uso." },
+    { emoji:"⚙️", label:"CPU", points:15, fact:"A CPU executa instruções e processa dados." },
+    { emoji:"💾", label:"SSD", points:12, fact:"O SSD armazena arquivos mesmo quando o computador está desligado." },
+    { emoji:"🎮", label:"GPU", points:15, fact:"A GPU processa gráficos e imagens." },
+    { emoji:"🔌", label:"USB", points:8, fact:"USB é um padrão de conexão para periféricos." },
+    { emoji:"🛡️", label:"FIREWALL", points:20, fact:"Firewall ajuda a filtrar conexões de rede." }
+  ];
+  const clean = v => String(v||"").trim().replace(/[<>]/g,"").slice(0,18) || "Jogador";
+  const code = () => crypto.randomBytes(3).toString("hex").toUpperCase();
+  const point = (x,y) => ({x,y});
+  function makeFood(room) {
+    let p, tries=0;
+    do { p=point(1+Math.floor(Math.random()*(W-2)),1+Math.floor(Math.random()*(H-2))); tries++; }
+    while(tries<200 && [...room.players.values()].some(pl=>pl.snake?.some(s=>s.x===p.x&&s.y===p.y)));
+    return {...p,...foods[Math.floor(Math.random()*foods.length)]};
+  }
+  function resetPlayers(room) {
+    const colors=["#42f5c5","#ff5ca8","#ffd166","#8b7bff","#ff884d","#62c6ff","#b5f36d","#e69cff"];
+    let i=0;
+    for(const pl of room.players.values()) {
+      const x=4+(i%4)*7, y=4+Math.floor(i/4)*10;
+      pl.snake=[point(x,y),point(x-1,y),point(x-2,y)]; pl.dir={x:1,y:0}; pl.nextDir={x:1,y:0};
+      pl.score=0; pl.alive=true; pl.connected=true; pl.color=colors[i%colors.length]; pl.place=null; i++;
+    }
+    room.food=makeFood(room); room.startedAt=Date.now(); room.status="playing";
+  }
+  function state(room) {
+    return {code:room.code,status:room.status,hostId:room.hostId,round:room.round,players:[...room.players.values()].map(p=>({id:p.id,name:p.name,score:p.score,alive:p.alive,connected:p.connected,color:p.color,snake:p.snake||[]})),food:room.food||null,width:W,height:H,endsAt:room.startedAt?room.startedAt+180000:null,winnerId:room.winnerId||null};
+  }
+  function broadcast(room){io.to(room.code).emit("snake:update",state(room));}
+  function finish(room){ if(room.status!=="playing")return; room.status="finished"; if(room.timer)clearInterval(room.timer); room.timer=null; const alive=[...room.players.values()].filter(p=>p.alive); room.winnerId=alive.length===1?alive[0].id:[...room.players.values()].sort((a,b)=>b.score-a.score)[0]?.id; broadcast(room); }
+  function tick(room){
+    if(room.status!=="playing")return;
+    if(Date.now()-room.startedAt>=180000){finish(room);return;}
+    const alive=[...room.players.values()].filter(p=>p.alive&&p.connected);
+    const moves=[];
+    for(const p of alive){
+      if(p.nextDir.x!==-p.dir.x||p.nextDir.y!==-p.dir.y)p.dir=p.nextDir;
+      const head=point(p.snake[0].x+p.dir.x,p.snake[0].y+p.dir.y);
+      const eating=room.food&&head.x===room.food.x&&head.y===room.food.y;
+      moves.push({p,head,eating});
+    }
+    const occupied=[];
+    for(const p of alive) for(let i=0;i<p.snake.length-(moves.find(m=>m.p===p)?.eating?0:1);i++) occupied.push(p.snake[i]);
+    for(const m of moves){
+      const hitWall=m.head.x<0||m.head.x>=W||m.head.y<0||m.head.y>=H;
+      const hitBody=occupied.some(s=>s.x===m.head.x&&s.y===m.head.y);
+      const sameHead=moves.some(n=>n!==m&&n.head.x===m.head.x&&n.head.y===m.head.y);
+      if(hitWall||hitBody||sameHead){m.p.alive=false;continue;}
+      m.p.snake.unshift(m.head);
+      if(m.eating){m.p.score+=room.food.points;io.to(room.code).emit("snake:fact",{playerId:m.p.id,playerName:m.p.name,food:room.food.label,fact:room.food.fact,points:room.food.points});room.food=makeFood(room);}
+      else m.p.snake.pop();
+    }
+    if([...room.players.values()].filter(p=>p.alive&&p.connected).length<=1)finish(room); else broadcast(room);
+  }
+  function stop(room){if(room.timer)clearInterval(room.timer);room.timer=null;}
+  io.on("connection",socket=>{
+    socket.on("snake:rooms",cb=>{if(typeof cb==="function")cb([...rooms.values()].filter(r=>r.status!=="finished").map(r=>({code:r.code,status:r.status,players:r.players.size,max:MAX})));});
+    socket.on("snake:create",({name}={},cb=()=>{})=>{
+      const c=code(),p={id:socket.id,name:clean(name),score:0,alive:true,connected:true};
+      const room={code:c,hostId:socket.id,players:new Map([[socket.id,p]]),status:"lobby",round:0,timer:null};rooms.set(c,room);socket.data.snakeRoom=c;socket.join(c);cb({ok:true,code:c});io.emit("snake:roomsChanged");broadcast(room);
+    });
+    socket.on("snake:join",({name,code:raw}={},cb=()=>{})=>{
+      const c=String(raw||"").toUpperCase(),room=rooms.get(c);if(!room)return cb({ok:false,error:"Sala não encontrada."});
+      if(room.players.size>=MAX)return cb({ok:false,error:"Sala cheia."});if(room.status==="playing")return cb({ok:false,error:"A partida já começou. Aguarde a próxima rodada para entrar."});
+      const p={id:socket.id,name:clean(name),score:0,alive:true,connected:true};room.players.set(socket.id,p);socket.data.snakeRoom=c;socket.join(c);cb({ok:true,code:c});broadcast(room);io.emit("snake:roomsChanged");
+    });
+    socket.on("snake:start",(_,cb=()=>{})=>{const room=rooms.get(socket.data.snakeRoom);if(!room)return cb({ok:false,error:"Sala não encontrada."});if(room.hostId!==socket.id)return cb({ok:false,error:"Somente o criador pode iniciar."});if(room.status!=="lobby")return cb({ok:false,error:"A sala não está no lobby."});if(room.players.size<2)return cb({ok:false,error:"São necessários pelo menos 2 jogadores."});room.round++;resetPlayers(room);room.timer=setInterval(()=>tick(room),155);cb({ok:true});broadcast(room);io.emit("snake:roomsChanged");});
+    socket.on("snake:turn",({direction}={})=>{const room=rooms.get(socket.data.snakeRoom);const p=room?.players.get(socket.id);if(!p||!p.alive||room.status!=="playing")return;const dirs={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}};const d=dirs[direction];if(d&&(d.x!==-p.dir.x||d.y!==-p.dir.y))p.nextDir=d;});
+    socket.on("snake:return",(_,cb=()=>{})=>{const room=rooms.get(socket.data.snakeRoom);if(!room||room.status!=="finished")return cb({ok:false,error:"A partida ainda não terminou."});stop(room);room.status="lobby";room.winnerId=null;for(const p of room.players.values()){p.snake=[];p.score=0;p.alive=true;}room.food=null;room.startedAt=null;room.round++;cb({ok:true});broadcast(room);io.emit("snake:roomsChanged");});
+    socket.on("disconnect",()=>{const c=socket.data.snakeRoom,room=rooms.get(c);if(!room)return;const p=room.players.get(socket.id);if(p){p.connected=false;p.alive=false;}if(room.status==="lobby"&&room.hostId===socket.id){const next=[...room.players.values()].find(x=>x.connected);if(next)room.hostId=next.id;}if(room.status==="playing"&&[...room.players.values()].filter(x=>x.alive&&x.connected).length<=1)finish(room);else broadcast(room);if([...room.players.values()].every(x=>!x.connected)){stop(room);rooms.delete(c);}io.emit("snake:roomsChanged");});
+  });
+}
+
 setupBomb(socketServer.of("/bomba"));
 setupMillion(socketServer.of("/milhao"));
+setupSnake(socketServer.of("/cobra"));
 server.listen(PORT,()=>console.log(`UNITEC Game Center rodando na porta ${PORT}`));
