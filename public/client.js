@@ -5,6 +5,7 @@ let roomState = null;
 let myId = null;
 let timerFrame = null;
 let lastExplosion = 0;
+let queuedForRoom = false;
 const socketIdReady = new Promise(resolve => socket.on("connect", () => { myId = socket.id; resolve(); }));
 function showSection(id){ sections.forEach(s => $(s).classList.toggle("hidden",s!==id)); }
 function toast(msg){ const el=$("toast"); el.textContent=msg; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),2400); }
@@ -16,14 +17,15 @@ async function createRoom(){
   const r=await emitAck("room:create",{name:nameValue()});
   if(!r?.ok){entryError(r?.error||"Não foi possível criar a sala.");return;}
   $("roomCode").textContent=r.code; $("gameRoomCode").textContent=r.code;
-  showSection("lobby");
+  queuedForRoom=false; showSection("lobby");
 }
 async function joinRoom(){
   entryError("");
   const r=await emitAck("room:join",{name:nameValue(),code:$("roomCodeInput").value});
   if(!r?.ok){entryError(r?.error||"Não foi possível entrar.");return;}
   $("roomCode").textContent=r.code; $("gameRoomCode").textContent=r.code;
-  showSection("lobby");
+  queuedForRoom=!!r.pending; showSection("lobby");
+  if(r.pending) toast("Você entrou como espectador e jogará na próxima rodada.");
 }
 $("createBtn").addEventListener("click",createRoom);
 $("joinBtn").addEventListener("click",joinRoom);
@@ -41,6 +43,15 @@ $("wordForm").addEventListener("submit",async e=>{
   else { input.select(); }
 });
 $("backBtn").addEventListener("click",()=>location.reload());
+$("returnLobbyBtn").addEventListener("click",async()=>{const r=await emitAck("lobby:return");if(!r?.ok)toast(r?.error||"Não foi possível voltar ao lobby.");});
+function refreshRooms(){ socket.emit("rooms:list", rooms=>renderActiveRooms(rooms||[])); }
+function renderActiveRooms(rooms){ const box=$("activeRooms"); if(!box)return; if(!rooms.length){box.innerHTML='<p class="muted">Nenhuma sala ativa no momento. Crie uma e convide seus colegas!</p>';return;} box.innerHTML=rooms.map(r=>`<div class="active-room"><div><b>SALA ${esc(r.code)}</b><small>${r.status==="lobby"?"No lobby":r.status==="playing"?`Em jogo · rodada ${r.round}`:"Preparando partida"} · ${r.players}/${r.max} jogadores${r.waiting?` · ${r.waiting} aguardando`:""}</small></div><button class="secondary" data-join-room="${esc(r.code)}" ${r.players+r.waiting>=r.max?"disabled":""}>${r.status==="lobby"?"ENTRAR":"ASSISTIR / ENTRAR"}</button></div>`).join(""); box.querySelectorAll("[data-join-room]").forEach(b=>b.addEventListener("click",()=>{$("roomCodeInput").value=b.dataset.joinRoom;joinRoom();})); }
+$("refreshRooms")?.addEventListener("click",refreshRooms);
+socket.on("rooms:changed",refreshRooms);
+socket.on("connect",refreshRooms);
+setInterval(refreshRooms,5000);
+socket.on("room:queued",data=>{queuedForRoom=true;showSection("lobby");$("roomCode").textContent=data.code;$("gameRoomCode").textContent=data.code;$("waitingText").textContent=data.message;toast(data.message);});
+socket.on("room:joined",()=>{queuedForRoom=false;toast("Você foi incluído na partida!");});
 socket.on("connect",()=>{myId=socket.id;});
 let visualCountdownTimer=null;
 function startVisualCountdown(endsAt){
@@ -55,6 +66,7 @@ function startVisualCountdown(endsAt){
 }
 socket.on("room:update",state=>{
   roomState=state;
+  if(queuedForRoom){ if(state.status==="finished") renderFinished(state); else showSection("lobby"); return; }
   $("roomCode").textContent=state.code;$("gameRoomCode").textContent=state.code;
   $("playerCount").textContent=`${state.players.length} / 20`;
   const host=state.hostId===socket.id;

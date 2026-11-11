@@ -61,6 +61,7 @@ function roomCode() {
 }
 function publicRoom(room) {
   return {
+    waitingPlayers: [...(room.pendingPlayers || new Map()).values()].map(p => ({ id:p.id, name:p.name })),
     code: room.code,
     hostId: room.hostId,
     status: room.status,
@@ -80,6 +81,21 @@ function publicRoom(room) {
 }
 function emitRoom(room) {
   io.to(room.code).emit("room:update", publicRoom(room));
+  io.emit("rooms:changed");
+}
+function listPublicRooms() {
+  return [...rooms.values()].filter(r => ["lobby","countdown","playing"].includes(r.status)).map(r => ({
+    code:r.code, status:r.status, players:r.players.size, waiting:r.pendingPlayers?.size || 0, max:MAX_PLAYERS, round:r.round
+  }));
+}
+function activatePendingPlayers(room) {
+  if (!room.pendingPlayers?.size) return;
+  for (const [id, player] of room.pendingPlayers) {
+    if (room.players.size >= MAX_PLAYERS) break;
+    room.players.set(id, { ...player, alive:true, score:0, correct:0, eliminations:0 });
+    io.sockets.sockets.get(id)?.emit("room:joined", { code:room.code });
+  }
+  room.pendingPlayers.clear();
 }
 function alivePlayers(room) {
   return [...room.players.values()].filter(p => p.alive);
@@ -173,6 +189,7 @@ function explode(code) {
   setTimeout(() => {
     const latest = rooms.get(code);
     if (!latest || latest.status !== "playing") return;
+    activatePendingPlayers(latest);
     const alive = alivePlayers(latest);
     if (!alive.length) return;
     const next = alive[crypto.randomInt(alive.length)];
@@ -188,6 +205,7 @@ function leaveRoom(socket) {
   const room = rooms.get(code);
   socket.data.roomCode = null;
   if (!room) return;
+  room.pendingPlayers?.delete(socket.id);
   const player = room.players.get(socket.id);
   if (player) {
     room.players.delete(socket.id);
@@ -222,7 +240,7 @@ io.on("connection", socket => {
     let code;
     do { code = roomCode(); } while (rooms.has(code));
     const room = {
-      code, hostId: socket.id, status: "lobby", players: new Map(),
+      code, hostId: socket.id, status: "lobby", players: new Map(), pendingPlayers: new Map(),
       bombHolderId: null, deadline: null, currentWord: "", round: 0, difficulty: 1,
       wordBag: [], wordBagLevel: 0,
       winnerId: null, message: "Aguardando jogadores...", timer: null, lastWord: ""
@@ -241,18 +259,39 @@ io.on("connection", socket => {
     const room = rooms.get(roomCodeValue);
     if (!playerName) return callback({ ok: false, error: "Digite seu nome." });
     if (!room) return callback({ ok: false, error: "Sala não encontrada. Confira o código." });
-    if (room.status !== "lobby") return callback({ ok: false, error: "A partida já começou." });
-    if (room.players.size >= MAX_PLAYERS) return callback({ ok: false, error: "A sala já tem 20 jogadores." });
-    if ([...room.players.values()].some(p => p.name.toLowerCase() === playerName.toLowerCase())) {
+    if (room.status === "finished") return callback({ ok: false, error: "A partida terminou. Aguarde o retorno ao lobby." });
+    if (room.players.size + (room.pendingPlayers?.size || 0) >= MAX_PLAYERS) return callback({ ok: false, error: "A sala já tem 20 jogadores." });
+    if ([...room.players.values(), ...(room.pendingPlayers?.values() || [])].some(p => p.name.toLowerCase() === playerName.toLowerCase())) {
       return callback({ ok: false, error: "Esse nome já está sendo usado na sala." });
     }
-    room.players.set(socket.id, { id: socket.id, name: playerName, alive: true, score: 0, correct: 0, eliminations: 0 });
     socket.join(room.code);
     socket.data.roomCode = room.code;
-    callback({ ok: true, code: room.code });
+    if (room.status === "lobby") {
+      room.players.set(socket.id, { id: socket.id, name: playerName, alive: true, score: 0, correct: 0, eliminations: 0 });
+      callback({ ok: true, code: room.code, pending:false });
+    } else {
+      room.pendingPlayers ||= new Map();
+      room.pendingPlayers.set(socket.id, { id:socket.id, name:playerName });
+      callback({ ok: true, code: room.code, pending:true });
+      socket.emit("room:queued", { code:room.code, message:"Você entrou como espectador. Será incluído quando a rodada atual terminar." });
+    }
     emitRoom(room);
   });
 
+
+  socket.on("rooms:list", callback => { if (typeof callback === "function") callback(listPublicRooms()); });
+  socket.on("lobby:return", (_, callback = () => {}) => {
+    const room = rooms.get(socket.data.roomCode);
+    if (!room || room.status !== "finished") return callback({ok:false,error:"A partida ainda não terminou."});
+    stopTimer(room);
+    room.status = "lobby"; room.round = 0; room.difficulty = 1;
+    room.bombHolderId = null; room.deadline = null; room.currentWord = "";
+    room.winnerId = null; room.countdownEndsAt = null; room.wordBag = []; room.wordBagLevel = 0; room.lastWord = "";
+    room.message = "Todos voltaram ao lobby. Aguardando a próxima partida!";
+    for (const p of room.players.values()) { p.alive = true; p.score = 0; p.correct = 0; p.eliminations = 0; }
+    activatePendingPlayers(room);
+    emitRoom(room); callback({ok:true});
+  });
 
   // Reações rápidas na sala de espera: somente emojis permitidos e com limite de envio.
   socket.on("lobby:emoji", ({ emoji } = {}) => {

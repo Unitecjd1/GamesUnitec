@@ -41,3 +41,12 @@ main{width:min(1160px,calc(100% - 32px));margin:42px auto 70px;position:relative
 /* Indicador visual de progressão da dificuldade da Bomba */
 .word-prompt.hard-word { text-shadow: 0 0 18px rgba(255,120,80,.75); }
 .word-prompt::after { content: attr(data-difficulty); display:block; font-family:Rajdhani,sans-serif; font-size:.42em; letter-spacing:.18em; opacity:.7; margin-top:.18em; }
+
+/* Lista de salas multiplayer disponíveis */
+.active-rooms{margin-top:24px;padding:18px;background:rgba(12,18,42,.78);border:1px solid rgba(49,245,242,.22);border-radius:16px}
+.active-room-list{display:grid;gap:10px;margin-top:12px}
+.active-room{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid rgba(141,130,255,.28);border-radius:12px;background:rgba(255,255,255,.035)}
+.active-room b{display:block;color:#31f5f2;font:700 12px Orbitron;letter-spacing:1px}
+.active-room small{display:block;color:#aeb6d3;font-size:14px;margin-top:4px}
+.active-room button{white-space:nowrap}
+@media(max-width:560px){.active-room{align-items:flex-start;flex-direction:column}.active-room button{width:100%}}
