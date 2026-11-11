@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UniTec • Show de Milhões</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/milhao/style.css">
+</head>
+<body>
+<div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+<header class="topbar">
+  <a class="brand" href="/"><span class="brand-mark">U</span><span><b>UniTec</b><small>SHOW DE MILHÕES</small></span></a>
+  <div class="top-meta"><span class="live-dot"></span><span id="connectionLabel">CONECTANDO</span><span class="top-divider"></span><span class="season">ARENA DO CONHECIMENTO</span></div>
+<a href="/" class="home-link" style="margin-left:14px;color:#31f5f2;text-decoration:none;font-weight:700">⌂ MENU</a></header>
+<main>
+  <section id="landing" class="landing">
+    <div class="hero-copy">
+      <div class="eyebrow"><span class="eyebrow-line"></span> CONHECIMENTO VALE PONTOS</div>
+      <h1>O próximo<br>milhão é <em>seu.</em></h1>
+      <p class="hero-description">Entre na arena, desafie seus colegas e prove que você domina a tecnologia. Cada resposta aproxima você da vitória.</p>
+      <div class="feature-pills"><span>✦ Ao vivo</span><span>♜ Multiplayer</span><span>⚡ Ranking instantâneo</span></div>
+    </div>
+    <div class="join-card">
+      <div class="card-topline"><span class="card-icon">✦</span><span>ENTRAR NA ARENA</span><span class="card-status">● ONLINE</span></div>
+      <label for="playerName">SEU NOME OU APELIDO</label>
+      <input id="playerName" maxlength="18" placeholder="Ex.: Ana Excel" autocomplete="nickname">
+      <div id="difficultyWrap" class="difficulty-wrap"><label for="difficultySelect">NÍVEL DA ARENA</label><select id="difficultySelect" class="difficulty-select"><option value="aprendiz">🟢 Aprendiz • Fácil</option><option value="praticante">🔵 Praticante • Intermediário</option><option value="especialista">🟠 Especialista • Avançado</option><option value="mestre">🔴 Mestre da Informática • Extremo</option></select></div>
+      <div class="entry-switch"><button class="switch active" data-mode="create">Criar sala</button><button class="switch" data-mode="join">Entrar com código</button></div>
+      <div id="codeWrap" class="hidden"><label for="roomCode">CÓDIGO DA SALA</label><input id="roomCode" class="code-input" maxlength="6" placeholder="ABC123" autocomplete="off"></div>
+      <button id="enterBtn" class="primary-btn"><span id="enterLabel">Criar minha sala</span><span>↗</span></button>
+      <p id="entryError" class="error-text"></p>
+      <div class="card-foot"><span>◈</span> Sua próxima conquista começa aqui.</div>
+    </div>
+    <div class="hero-bottom"><div class="stat"><b>01</b><span>Entre na sala</span></div><div class="stat-line"></div><div class="stat"><b>02</b><span>Responda rápido</span></div><div class="stat-line"></div><div class="stat"><b>03</b><span>Suba no ranking</span></div><div class="hero-stamp">UT<span>•</span>EDU</div></div>
+  </section>
+
+  <section id="lobby" class="game-layout hidden">
+    <div class="main-panel">
+      <div class="section-kicker">SALA DE COMPETIÇÃO</div>
+      <div class="lobby-heading"><div><h2>Prepare-se para jogar.</h2><p>Compartilhe o código e aguarde seus adversários.</p></div><div class="room-code"><small>CÓDIGO DA SALA</small><b id="lobbyCode">------</b><button id="copyCode">COPIAR ↗</button></div></div>
+      <div class="lobby-stage"><div class="stage-orbit"></div><div class="stage-cup">♛</div><div class="stage-title">A ARENA ESTÁ ABERTA ⚡</div><div class="stage-sub">Cada jogador começa com 3 vidas. Errou? Perde uma! ❤️❤️❤️</div><div class="stage-lights"><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="arena-level" id="arenaLevel">NÍVEL: APRENDIZ</div><div class="players-heading"><div><h3>Jogadores na arena</h3><p>Todos entram na disputa em tempo real.</p></div><span class="player-count" id="playerCount">0 JOGADORES</span></div>
+      <div id="lobbyPlayers" class="lobby-players"></div>
+      <button id="startBtn" class="primary-btn start-btn">Iniciar partida <span>→</span></button>
+      <p id="lobbyHint" class="hint">O anfitrião pode iniciar quando houver pelo menos 2 jogadores.</p>
+    </div>
+    <aside class="side-panel"><div class="side-label">COMO JOGAR</div><div class="rule"><span>01</span><div><b>Responda no tempo</b><p>Você tem 25 segundos para escolher uma alternativa.</p></div></div><div class="rule"><span>02</span><div><b>Você tem 3 vidas</b><p>Errou ou estourou o tempo? Perde 1 vida. Só sai quando perder as 3.</p></div></div><div class="rule"><span>03</span><div><b>Acompanhe os rivais</b><p>Todos podem ver em tempo real quantas vidas cada jogador ainda tem.</p></div></div><div class="prize-mini"><div class="prize-star">⚡</div><small>PLACAR SEM LIMITE</small><b>∞ PTS</b><span>+1.000 por acerto e bônus de velocidade</span></div></aside>
+  </section>
+
+  <section id="game" class="game-layout hidden">
+    <div class="main-panel play-panel">
+      <div class="game-top"><div><div class="section-kicker">RODADA <span id="roundNumber">01</span></div><div class="category-tag" id="categoryTag">INFORMÁTICA</div></div><div class="timer-ring" id="timerRing"><b id="timerValue">25</b><small>SEG</small></div></div>
+      <div class="progress-track"><div id="progressBar"></div></div>
+      <div class="question-meta"><span id="questionCounter">RODADA 01</span><span id="questionPrize">+1.000 PONTOS</span></div>
+      <h2 id="questionText" class="question-text">Carregando pergunta...</h2>
+      <div id="answers" class="answers"></div>
+      <div id="resultBox" class="result-box hidden"></div>
+      <div class="help-row"><div class="help-label">POWER-UPS <span>• USE COM ESTRATÉGIA</span></div><div class="help-buttons"><button class="help-btn" data-help="fifty"><span class="help-symbol">½</span><span>50/50</span></button><button class="help-btn" data-help="audience"><span class="help-symbol">♟</span><span>Plateia</span></button></div></div>
+      <div id="audienceBox" class="audience-box hidden"></div>
+    </div>
+    <aside class="side-panel ranking-panel"><div class="ranking-head"><div><div class="side-label">PLACAR AO VIVO</div><h3>Ranking</h3></div><span class="live-pill"><i></i> LIVE</span></div><div id="rankingList" class="ranking-list"></div><div class="your-score"><span>SUA PONTUAÇÃO</span><b id="myScore">0 <small>PTS</small></b></div><div class="prize-ladder"><div class="side-label">RODADA ATUAL</div><div id="prizeList"></div></div></aside>
+  </section>
+
+  <section id="finished" class="finished hidden">
+    <div class="winner-burst">🏆</div><div class="section-kicker">FIM DE JOGO</div><h2>A arena tem um <em>campeão!</em></h2><p id="finishSubtitle">Parabéns a todos os participantes.</p><div id="finalRanking" class="final-ranking"></div><button id="newGameBtn" class="primary-btn">Voltar ao início <span>↗</span></button>
+  </section>
+</main>
+<footer><span>© 2026 UniTec • Arena do Conhecimento</span><span>APRENDER. JOGAR. EVOLUIR.</span></footer>
+<div id="toast" class="toast"></div>
+<script src="/socket.io/socket.io.js"></script><script src="/milhao/app.js"></script>
+</body></html>

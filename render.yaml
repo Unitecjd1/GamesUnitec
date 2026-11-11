@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: unitec-game-center
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
