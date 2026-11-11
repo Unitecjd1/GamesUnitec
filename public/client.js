@@ -175,6 +175,21 @@ const training = [
  {level:"NÍVEL 3",title:"Frases do dia a dia",tip:"Chegou a hora de digitar frases. Respeite os espaços e a pontuação.",tasks:["EU GOSTO DE INFORMATICA.","O TECLADO SERVE PARA DIGITAR.","SALVE SEUS ARQUIVOS EM UMA PASTA.","A INTERNET CONECTA PESSOAS E COMPUTADORES."]}
 ];
 let trainingIndex=0, trainingCorrect=0, trainingAttempts=0, trainingPassed=false, singleSeconds=15, singleClock=null, singleCountdown=null, singleIntroPending=true;
+// Anti-cola: impede colar texto nos campos de digitação (multiplayer e treino individual).
+function blockTypingPaste(inputId) {
+  const field = $(inputId);
+  if (!field || field.dataset.pasteGuard === "1") return;
+  field.dataset.pasteGuard = "1";
+  const block = (event) => { event.preventDefault(); if (inputId === "wordInput") { $("wordFeedback").textContent = "Copiar e colar está desativado. Digite a palavra!"; $("wordFeedback").className = "feedback error"; } else { $("singleFeedback").textContent = "Copiar e colar está desativado. Digite o texto!"; } };
+  ["paste", "drop", "contextmenu"].forEach(type => field.addEventListener(type, block));
+  field.addEventListener("keydown", event => {
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && ["v", "x"].includes(key) || (event.shiftKey && key === "insert")) block(event);
+  });
+}
+blockTypingPaste("wordInput");
+blockTypingPaste("singleInput");
+
 function normalizedTyping(v){return String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\s+/g," ").trim();}
 function currentTask(){let flat=training.flatMap((level,li)=>level.tasks.map((task,ti)=>({level,li,ti,task})));return flat[trainingIndex];}
 function renderTraining(){
