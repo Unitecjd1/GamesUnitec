@@ -15,6 +15,40 @@ app.get("/bomba", (_req,res)=>res.sendFile(path.join(PUBLIC,"bomba.html")));
 app.get("/milhao", (_req,res)=>res.sendFile(path.join(PUBLIC,"milhao","index.html")) );
 app.get("/cobra", (_req,res)=>res.sendFile(path.join(PUBLIC,"cobra.html")));
 
+// Chat geral da plataforma (namespace padrão: /)
+const globalChat = { history: [], lastMessageAt: new Map(), maxMessages: 80 };
+function cleanChatText(value, maxLength) {
+  return String(value || "").replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+socketServer.on("connection", (socket) => {
+  socket.emit("chat:history", globalChat.history);
+  socket.on("chat:join", (payload) => {
+    const name = cleanChatText(payload && payload.name, 20);
+    if (!name) return socket.emit("chat:error", "Digite um apelido para entrar no chat.");
+    socket.data.chatName = name;
+    socket.emit("chat:joined", { name });
+    socket.broadcast.emit("chat:notice", { text: `${name} entrou no chat.` });
+  });
+  socket.on("chat:send", (payload) => {
+    const name = socket.data.chatName;
+    const text = cleanChatText(payload && payload.text, 280);
+    if (!name) return socket.emit("chat:error", "Entre no chat antes de enviar mensagens.");
+    if (!text) return;
+    const now = Date.now();
+    const last = globalChat.lastMessageAt.get(socket.id) || 0;
+    if (now - last < 900) return socket.emit("chat:error", "Aguarde um instante antes de enviar outra mensagem.");
+    globalChat.lastMessageAt.set(socket.id, now);
+    const message = { id: crypto.randomUUID(), name, text, time: now };
+    globalChat.history.push(message);
+    if (globalChat.history.length > globalChat.maxMessages) globalChat.history.shift();
+    socketServer.emit("chat:message", message);
+  });
+  socket.on("disconnect", () => {
+    globalChat.lastMessageAt.delete(socket.id);
+    if (socket.data.chatName) socket.broadcast.emit("chat:notice", { text: `${socket.data.chatName} saiu do chat.` });
+  });
+});
+
 function setupBomb(io) {
 const MAX_PLAYERS = 20;
 const rooms = new Map();
