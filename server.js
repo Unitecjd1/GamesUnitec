@@ -736,13 +736,32 @@ function setupSnake(io) {
       const eating=room.food&&head.x===room.food.x&&head.y===room.food.y;
       moves.push({p,head,eating});
     }
-    const occupied=[];
-    for(const p of alive) for(let i=0;i<p.snake.length-(moves.find(m=>m.p===p)?.eating?0:1);i++) occupied.push(p.snake[i]);
+    // Colisões são calculadas sobre o mesmo estado do tabuleiro para evitar
+    // que a ordem de processamento favoreça algum jogador.
+    const bodyHits = new Set();
+    const deadByCrash = new Set();
     for(const m of moves){
       const hitWall=m.head.x<0||m.head.x>=W||m.head.y<0||m.head.y>=H;
-      const hitBody=occupied.some(s=>s.x===m.head.x&&s.y===m.head.y);
+      const ownBody=m.p.snake.slice(1, m.p.snake.length-(m.eating?0:1))
+        .some(s=>s.x===m.head.x&&s.y===m.head.y);
       const sameHead=moves.some(n=>n!==m&&n.head.x===m.head.x&&n.head.y===m.head.y);
-      if(hitWall||hitBody||sameHead){m.p.alive=false;continue;}
+      if(hitWall||ownBody||sameHead) deadByCrash.add(m.p.id);
+
+      // A cabeça que alcança o corpo de outra cobra vence o confronto:
+      // a cobra atingida é eliminada e a atacante continua viva.
+      for(const other of alive){
+        if(other===m.p) continue;
+        const otherMove=moves.find(n=>n.p===other);
+        const bodyLength=other.snake.length-(otherMove?.eating?0:1);
+        if(other.snake.slice(1,bodyLength).some(part=>part.x===m.head.x&&part.y===m.head.y))
+          bodyHits.add(other.id);
+      }
+    }
+    for(const id of deadByCrash) { const p=room.players.get(id); if(p) p.alive=false; }
+    for(const id of bodyHits) { const p=room.players.get(id); if(p) p.alive=false; }
+
+    for(const m of moves){
+      if(!m.p.alive) continue;
       m.p.snake.unshift(m.head);
       if(m.eating){m.p.score+=room.food.points;io.to(room.code).emit("snake:fact",{playerId:m.p.id,playerName:m.p.name,food:room.food.label,fact:room.food.fact,points:room.food.points});room.food=makeFood(room);}
       else m.p.snake.pop();
