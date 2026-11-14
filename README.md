@@ -14,3 +14,9 @@ O projeto usa um único servidor HTTP e dois namespaces Socket.IO isolados (`/bo
 - `/bomba` Bomba da Digitação (multiplayer e treinamento individual)
 - `/milhao` Show de Milhões
 - `/health` verificação de funcionamento
+
+
+## Cyber Snake — melhorias
+- Nick do jogador acompanha a cabeça da cobra durante toda a partida.
+- Quatro túneis nas extremidades dos cantos permitem atravessar a parede e reaparecer do outro lado.
+- As aberturas dos túneis ficam destacadas visualmente na arena.

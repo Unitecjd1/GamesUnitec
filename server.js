@@ -732,9 +732,23 @@ function setupSnake(io) {
     const moves=[];
     for(const p of alive){
       if(p.nextDir.x!==-p.dir.x||p.nextDir.y!==-p.dir.y)p.dir=p.nextDir;
-      const head=point(p.snake[0].x+p.dir.x,p.snake[0].y+p.dir.y);
+      let nx=p.snake[0].x+p.dir.x, ny=p.snake[0].y+p.dir.y;
+      // Túneis nos quatro cantos: ao sair pela abertura de um canto,
+      // a cobra reaparece no canto oposto da mesma parede.
+      // A passagem ocupa 2 células junto a cada canto.
+      const TUNNEL=2;
+      if(nx<0 && ny<TUNNEL) nx=W-1;
+      else if(nx>=W && ny<TUNNEL) nx=0;
+      else if(nx<0 && ny>=H-TUNNEL) nx=W-1;
+      else if(nx>=W && ny>=H-TUNNEL) nx=0;
+      else if(ny<0 && nx<TUNNEL) ny=H-1;
+      else if(ny>=H && nx<TUNNEL) ny=0;
+      else if(ny<0 && nx>=W-TUNNEL) ny=H-1;
+      else if(ny>=H && nx>=W-TUNNEL) ny=0;
+      const head=point(nx,ny);
+      const tunneled = (head.x!==p.snake[0].x+p.dir.x || head.y!==p.snake[0].y+p.dir.y);
       const eating=room.food&&head.x===room.food.x&&head.y===room.food.y;
-      moves.push({p,head,eating});
+      moves.push({p,head,eating,tunneled});
     }
     // Colisões são calculadas sobre o mesmo estado do tabuleiro para evitar
     // que a ordem de processamento favoreça algum jogador.

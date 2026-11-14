@@ -12,5 +12,68 @@ $('leave').onclick=()=>location.reload();$('return').onclick=async()=>{const r=a
 function direction(d){socket.emit('snake:turn',{direction:d})}document.addEventListener('keydown',e=>{const k=e.key.toLowerCase(),map={arrowup:'up',w:'up',arrowdown:'down',s:'down',arrowleft:'left',a:'left',arrowright:'right',d:'right'};if(map[k]){e.preventDefault();direction(map[k])}});document.querySelectorAll('[data-dir]').forEach(b=>b.onclick=()=>direction(b.dataset.dir));
 socket.on('snake:update',s=>{lastState=s;me=socket.id;if(s.status==='lobby'){show('lobby');$('players').innerHTML=s.players.map(p=>`<div class="player">${p.name}${p.id===s.hostId?' 👑':''}${p.id===socket.id?' (VOCÊ)':''}</div>`).join('');$('start').classList.toggle('hidden',s.hostId!==socket.id);$('hostInfo').textContent=s.players.length<2?'Aguardando pelo menos 2 jogadores...':'Pronto! O anfitrião pode iniciar.';return}if(s.status==='playing'){show('game');draw(s);const mine=s.players.find(p=>p.id===socket.id);$('score').textContent=mine?.score||0;$('alive').textContent=s.players.filter(p=>p.alive&&p.connected).length;const sec=Math.max(0,Math.ceil((s.endsAt-Date.now())/1000));$('time').textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');$('scores').innerHTML=s.players.slice().sort((a,b)=>b.score-a.score).map(p=>`<div class="score"><span>${p.name}${p.id===socket.id?' (VOCÊ)':''}</span><b>${p.score} pts ${p.alive?'🟢':'❌'}</b></div>`).join('');$('message').textContent=mine&&!mine.alive?'Você foi eliminado! Acompanhe o restante da partida.':'Use as setas ou WASD para movimentar sua cobra.';return}if(s.status==='finished'){show('finished');$('ranking').innerHTML=s.players.slice().sort((a,b)=>b.score-a.score).map((p,i)=>`<div class="score"><span>${['🥇','🥈','🥉'][i]||'#'+(i+1)} ${p.name}</span><b>${p.score} pts</b></div>`).join('')}});
 socket.on('snake:fact',d=>{if(d.playerId===socket.id)toast(`+${d.points} ${d.food}: ${d.fact}`)});
-function draw(s){const c=$('board'),ctx=c.getContext('2d'),cw=c.width/s.width,ch=c.height/s.height;ctx.fillStyle='#07121c';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#102b38';ctx.lineWidth=1;for(let x=0;x<=s.width;x++){ctx.beginPath();ctx.moveTo(x*cw,0);ctx.lineTo(x*cw,c.height);ctx.stroke()}for(let y=0;y<=s.height;y++){ctx.beginPath();ctx.moveTo(0,y*ch);ctx.lineTo(c.width,y*ch);ctx.stroke()}if(s.food){ctx.font=`${Math.min(cw,ch)*.85}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s.food.emoji,(s.food.x+.5)*cw,(s.food.y+.5)*ch)}for(const p of s.players){if(!p.snake?.length)continue;p.snake.forEach((part,i)=>{ctx.fillStyle=p.alive?p.color:'#475569';ctx.shadowColor=p.color;ctx.shadowBlur=i===0?13:5;ctx.fillRect(part.x*cw+1,part.y*ch+1,cw-2,ch-2);ctx.shadowBlur=0});const h=p.snake[0];ctx.fillStyle='#06111a';ctx.beginPath();ctx.arc((h.x+.35)*cw,(h.y+.38)*ch,2.5,0,Math.PI*2);ctx.arc((h.x+.68)*cw,(h.y+.38)*ch,2.5,0,Math.PI*2);ctx.fill()}}
+function draw(s){
+  const c=$('board'),ctx=c.getContext('2d'),cw=c.width/s.width,ch=c.height/s.height;
+  ctx.fillStyle='#07121c';ctx.fillRect(0,0,c.width,c.height);
+
+  // Grade da arena
+  ctx.strokeStyle='#102b38';ctx.lineWidth=1;
+  for(let x=0;x<=s.width;x++){ctx.beginPath();ctx.moveTo(x*cw,0);ctx.lineTo(x*cw,c.height);ctx.stroke()}
+  for(let y=0;y<=s.height;y++){ctx.beginPath();ctx.moveTo(0,y*ch);ctx.lineTo(c.width,y*ch);ctx.stroke()}
+
+  // Túneis: quatro aberturas luminosas nos cantos.
+  const tw=2*cw, th=2*ch;
+  ctx.save();
+  ctx.fillStyle='#102f3d';ctx.strokeStyle='#53f0c8';ctx.lineWidth=2;
+  [[0,0],[s.width-2,0],[0,s.height-2],[s.width-2,s.height-2]].forEach(([gx,gy])=>{
+    ctx.fillRect(gx*cw,gy*ch,tw,th);
+    ctx.strokeRect(gx*cw+1,gy*ch+1,tw-2,th-2);
+  });
+  ctx.font=`bold ${Math.max(9,Math.min(cw,ch)*.42)}px Orbitron,Arial`;
+  ctx.fillStyle='#53f0c8';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('↔',(1)*cw,(1)*ch);
+  ctx.fillText('↔',(s.width-1)*cw,(1)*ch);
+  ctx.fillText('↔',(1)*cw,(s.height-1)*ch);
+  ctx.fillText('↔',(s.width-1)*cw,(s.height-1)*ch);
+  ctx.restore();
+
+  if(s.food){
+    ctx.font=`${Math.min(cw,ch)*.85}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(s.food.emoji,(s.food.x+.5)*cw,(s.food.y+.5)*ch);
+  }
+
+  for(const p of s.players){
+    if(!p.snake?.length)continue;
+
+    // Corpo
+    p.snake.forEach((part,i)=>{
+      ctx.fillStyle=p.alive?p.color:'#475569';
+      ctx.shadowColor=p.color;ctx.shadowBlur=i===0?13:5;
+      ctx.fillRect(part.x*cw+1,part.y*ch+1,cw-2,ch-2);ctx.shadowBlur=0;
+    });
+
+    const h=p.snake[0];
+    // Olhos da cobra
+    ctx.fillStyle='#06111a';ctx.beginPath();
+    ctx.arc((h.x+.35)*cw,(h.y+.38)*ch,2.5,0,Math.PI*2);
+    ctx.arc((h.x+.68)*cw,(h.y+.38)*ch,2.5,0,Math.PI*2);ctx.fill();
+
+    // Nick acompanha a cobra durante toda a partida.
+    // O nome fica ancorado na cabeça para permanecer visível enquanto ela se move.
+    const name=String(p.name||'Jogador').slice(0,18);
+    const fs=Math.max(10,Math.min(15,cw*.42));
+    ctx.font=`800 ${fs}px Rajdhani,Arial`;
+    const pad=7, tw2=ctx.measureText(name).width+pad*2, th2=fs+8;
+    let lx=(h.x+.5)*cw-tw2/2, ly=h.y*ch-th2-4;
+    lx=Math.max(2,Math.min(c.width-tw2-2,lx));
+    ly=Math.max(2,ly);
+    ctx.fillStyle='rgba(4,12,20,.88)';
+    ctx.strokeStyle=p.color;ctx.lineWidth=1.5;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(lx,ly,tw2,th2,6); else ctx.rect(lx,ly,tw2,th2);
+    ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(name,lx+tw2/2,ly+th2/2+1);
+  }
+}
 refresh();
