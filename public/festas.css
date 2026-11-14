@@ -1,6 +1,5 @@
 /* MODO FINAL DE ANO — decoração global UNITEC */
 #holidayLayer{position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden}
-#holidayGif{position:absolute;top:74px;left:0;width:900px;max-width:72vw;height:auto;opacity:.62;filter:drop-shadow(0 0 8px rgba(255,215,120,.35));animation:holidayCruise 22s linear infinite}
 .holiday-snow{position:absolute;inset:0;background-image:radial-gradient(circle at 8% 14%,rgba(255,255,255,.7) 0 2px,transparent 3px),radial-gradient(circle at 31% 38%,rgba(255,255,255,.5) 0 2px,transparent 3px),radial-gradient(circle at 63% 18%,rgba(255,255,255,.65) 0 2px,transparent 3px),radial-gradient(circle at 84% 45%,rgba(255,255,255,.45) 0 2px,transparent 3px),radial-gradient(circle at 49% 72%,rgba(255,255,255,.45) 0 2px,transparent 3px);background-size:230px 230px,310px 310px,270px 270px,350px 350px,290px 290px;opacity:.16;animation:holidaySnow 18s linear infinite}
 .holiday-corner{position:absolute;font-size:32px;opacity:.55;filter:drop-shadow(0 0 8px rgba(255,210,100,.35));animation:holidayFloat 4s ease-in-out infinite}
 .holiday-corner.left{left:12px;top:84px}.holiday-corner.right{right:12px;top:84px;animation-delay:1.5s}
@@ -8,7 +7,6 @@
 .holiday-mode{position:fixed;top:7px;right:12px;z-index:10000;pointer-events:none;padding:5px 10px;border:1px solid rgba(246,211,101,.45);border-radius:999px;background:rgba(8,15,25,.55);backdrop-filter:blur(5px);color:#ffe7a0;font:800 9px/1 Arial,sans-serif;letter-spacing:1px;text-transform:uppercase}
 .holiday-message{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:10000;pointer-events:none;padding:6px 14px;border-radius:999px;background:rgba(8,15,25,.68);border:1px solid rgba(246,211,101,.28);box-shadow:0 0 18px rgba(246,211,101,.10);color:#ffe9ad;font:700 10px/1.2 Arial,sans-serif;letter-spacing:.8px;white-space:nowrap}
 .holiday-message b{color:#fff5d0}
-@keyframes holidayCruise{0%{transform:translateX(-980px)}100%{transform:translateX(110vw)}}
 @keyframes holidaySnow{0%{background-position:0 0,0 0,0 0,0 0,0 0}100%{background-position:0 230px,0 310px,0 270px,0 350px,0 290px}}
 @keyframes holidayFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(8px) rotate(2deg)}}
-@media(max-width:700px){#holidayGif{top:58px;width:650px;max-width:88vw;opacity:.52}.holiday-corner{font-size:25px}.holiday-corner.left{top:72px}.holiday-corner.right{top:72px}.holiday-mode{top:5px;right:7px;font-size:7px;padding:4px 7px}.holiday-message{bottom:6px;font-size:8px;max-width:92vw;text-align:center;white-space:normal}}
+@media(max-width:700px){.holiday-corner{font-size:25px}.holiday-corner.left{top:72px}.holiday-corner.right{top:72px}.holiday-mode{top:5px;right:7px;font-size:7px;padding:4px 7px}.holiday-message{bottom:6px;font-size:8px;max-width:92vw;text-align:center;white-space:normal}}
